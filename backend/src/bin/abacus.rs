@@ -109,8 +109,8 @@ async fn run() -> Result<(), AppError> {
     socket.listen(1024)?;
 
     let listener = TcpListener::from_std(socket.into())?;
-    
-    let backupconfig = BackupConfig {directory};
+
+    //let backupconfig = BackupConfig {};
 
     start_server(pool, listener, enable_airgap_detection).await
 }
