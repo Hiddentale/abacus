@@ -1,3 +1,4 @@
+use chrono::Local;
 use sqlx::SqlitePool;
 use std::error::Error;
 use std::path::{Path, PathBuf};
@@ -36,7 +37,9 @@ pub async fn create_local_backup(
     pool: &SqlitePool,
     backupconfig: &BackupConfig,
 ) -> Result<(), Box<dyn Error>> {
-    backup_database(pool, &backupconfig.directory).await?;
+    let filename = format!("backup_{}.db", Local::now().format("%Y-%m-%d_%H-%M-%S"));
+    let backup_path = backupconfig.directory.join(filename);
+    backup_database(pool, &backup_path).await?;
     Ok(())
 }
 
@@ -54,21 +57,22 @@ mod tests {
         backup_config
     }
 
-    fn delete_backup_directory() {
-        !todo()
+    fn delete_backup_directory(backup_config: &BackupConfig) {
+        std::fs::remove_dir_all(&backup_config.directory).unwrap();
     }
 
     #[test]
     fn backup_directory_is_created_succesfully() {
         let backup_config = setup_backup_config();
         create_backup_directory(&backup_config).unwrap();
-        //delete_backup_directory();
+        delete_backup_directory(&backup_config);
     }
     #[sqlx::test]
     async fn local_backup_is_succesfull(pool: SqlitePool) {
         let backup_config = setup_backup_config();
         create_backup_directory(&backup_config).unwrap();
         create_local_backup(&pool, &backup_config).await.unwrap();
-        //delete_backup_directory();
+        assert!(backup_config.directory.read_dir().unwrap().next().is_some());
+        delete_backup_directory(&backup_config);
     }
 }
