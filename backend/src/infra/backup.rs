@@ -39,3 +39,16 @@ pub async fn create_local_backup(
     backup_database(pool, &backupconfig.directory).await?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[sqlx::test]
+    async fn backup_directory_is_created_succesfully(pool: SqlitePool) {
+        let backup_config = BackupConfig {
+            directory: PathBuf()::new("/"),
+        };
+        create_local_backup(&pool, &backup_config);
+    }
+}
