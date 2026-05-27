@@ -46,14 +46,16 @@ pub async fn create_local_backup(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    static TEST_LOCK: Mutex<()> = Mutex::new(());
 
     fn setup_backup_config() -> BackupConfig {
         let parent_directory = std::env::temp_dir();
         let backup_directory = parent_directory.join("database_backups");
-        let mut backup_config = BackupConfig {
+        let backup_config = BackupConfig {
             directory: backup_directory,
         };
-        store_backup_directory_path(&mut backup_config).unwrap();
         backup_config
     }
 
@@ -63,12 +65,33 @@ mod tests {
 
     #[test]
     fn backup_directory_is_created_succesfully() {
+        let _lock = TEST_LOCK.lock().unwrap();
         let backup_config = setup_backup_config();
         create_backup_directory(&backup_config).unwrap();
         delete_backup_directory(&backup_config);
     }
+
+    #[test]
+    fn backup_directory_creation_is_idempotent() {
+        let _lock = TEST_LOCK.lock().unwrap();
+        let backup_config = setup_backup_config();
+        create_backup_directory(&backup_config).unwrap();
+        create_backup_directory(&backup_config).unwrap();
+        delete_backup_directory(&backup_config);
+    }
+
+    #[test]
+    fn backup_path_ends_with_correct_directory_name() {
+        let mut config = BackupConfig {
+            directory: PathBuf::new(),
+        };
+        store_backup_directory_path(&mut config).unwrap();
+        assert!(config.directory.ends_with("database_backups"));
+    }
+
     #[sqlx::test]
     async fn local_backup_is_succesfull(pool: SqlitePool) {
+        let _lock = TEST_LOCK.lock().unwrap();
         let backup_config = setup_backup_config();
         create_backup_directory(&backup_config).unwrap();
         create_local_backup(&pool, &backup_config).await.unwrap();
