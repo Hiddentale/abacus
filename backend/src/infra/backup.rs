@@ -19,7 +19,7 @@ async fn backup_database(pool: &SqlitePool, destination: &Path) -> Result<(), Bo
     Ok(())
 }
 
-async fn create_backup_directory(backupconfig: &BackupConfig) -> Result<(), Box<dyn Error>> {
+fn create_backup_directory(backupconfig: &BackupConfig) -> Result<(), Box<dyn Error>> {
     std::fs::create_dir_all(&backupconfig.directory)?;
     Ok(())
 }
@@ -44,11 +44,31 @@ pub async fn create_local_backup(
 mod tests {
     use super::*;
 
-    #[sqlx::test]
-    async fn backup_directory_is_created_succesfully(pool: SqlitePool) {
-        let backup_config = BackupConfig {
-            directory: PathBuf()::new("/"),
+    fn setup_backup_config() -> BackupConfig {
+        let parent_directory = std::env::temp_dir();
+        let backup_directory = parent_directory.join("database_backups");
+        let mut backup_config = BackupConfig {
+            directory: backup_directory,
         };
-        create_local_backup(&pool, &backup_config);
+        store_backup_directory_path(&mut backup_config).unwrap();
+        backup_config
+    }
+
+    fn delete_backup_directory() {
+        !todo()
+    }
+
+    #[test]
+    fn backup_directory_is_created_succesfully() {
+        let backup_config = setup_backup_config();
+        create_backup_directory(&backup_config).unwrap();
+        //delete_backup_directory();
+    }
+    #[sqlx::test]
+    async fn local_backup_is_succesfull(pool: SqlitePool) {
+        let backup_config = setup_backup_config();
+        create_backup_directory(&backup_config).unwrap();
+        create_local_backup(&pool, &backup_config).await.unwrap();
+        //delete_backup_directory();
     }
 }
