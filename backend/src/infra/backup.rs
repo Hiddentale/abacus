@@ -14,10 +14,22 @@ pub enum BackupError {
     Database(sqlx::Error),
 }
 
+impl From<std::io::Error> for BackupError {
+    fn from(error: std::io::Error) -> Self {
+        BackupError::Io(error)
+    }
+}
+
+impl From<sqlx::Error> for BackupError {
+    fn from(err: sqlx::Error) -> Self {
+        BackupError::Database(err)
+    }
+}
+
 async fn backup_database(pool: &SqlitePool, destination: &Path) -> Result<(), BackupError> {
     let destination = destination
         .to_str()
-        .ok_or("error formatting string")?
+        .ok_or(BackupError::InvalidPath)?
         .to_string();
     let mut connection = pool.acquire().await?;
     sqlx::query("VACUUM INTO ?")
@@ -34,7 +46,9 @@ fn create_backup_directory(backupconfig: &BackupConfig) -> Result<(), BackupErro
 
 pub fn store_backup_directory_path(backupconfig: &mut BackupConfig) -> Result<(), BackupError> {
     let executable_path = std::env::current_exe()?;
-    let executable_directory = executable_path.parent().ok_or("parent does not exist")?;
+    let executable_directory = executable_path
+        .parent()
+        .ok_or(BackupError::NoExecutableDirectory)?;
     let backup_directory = executable_directory.join("database_backups");
     backupconfig.directory = backup_directory;
     Ok(())
