@@ -1,6 +1,9 @@
 use chrono::Local;
 use sqlx::SqlitePool;
 use std::path::{Path, PathBuf};
+use tower_http::classify::GrpcCode::Ok;
+
+const AMOUNT_OF_BACKUP_FILES_ALLOWED: u64 = 5;
 
 #[derive(Clone)]
 pub struct BackupConfig {
@@ -50,6 +53,16 @@ async fn backup_database(pool: &SqlitePool, destination: &Path) -> Result<(), Ba
         .bind(destination)
         .execute(&mut *connection)
         .await?;
+    Ok(())
+}
+
+fn remove_oldest_backup(backup_config: &BackupConfig) -> Result<(), BackupError> {
+    let mut directory_entries = std::fs::read_dir(backup_config.directory);
+    let mut oldest_entry_path: PathBuf = "/".to_path();
+    for entry in directory_entries {
+        if
+    }
+    std::fs::remove_file(oldest_entry_path);
     Ok(())
 }
 
