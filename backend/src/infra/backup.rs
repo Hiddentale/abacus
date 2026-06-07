@@ -56,12 +56,10 @@ async fn backup_database(pool: &SqlitePool, destination: &Path) -> Result<(), Ba
 }
 
 fn remove_oldest_backup(backup_config: &BackupConfig) -> Result<(), BackupError> {
-    let mut directory_entries = std::fs::read_dir(backup_config.directory.clone())?;
-    let oldest_backup = directory_entries
-        .filter_map(|e| e.ok())
-        .min_by_key(|f| f.metadata().and_then(|m| m.created()));
+    let directory_entries = std::fs::read_dir(backup_config.directory.clone())?;
+    let oldest_backup = directory_entries.filter_map(|f| Some(f.ok()?.path())).min();
     if let Some(oldest_backup) = oldest_backup {
-        std::fs::remove_file(oldest_backup.path())?;
+        std::fs::remove_file(oldest_backup)?;
     }
     Ok(())
 }
