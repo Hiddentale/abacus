@@ -56,7 +56,7 @@ async fn backup_database(pool: &SqlitePool, destination: &Path) -> Result<(), Ba
 }
 
 fn remove_oldest_backup(backup_config: &BackupConfig) -> Result<(), BackupError> {
-    let directory_entries = std::fs::read_dir(backup_config.directory.clone())?;
+    let directory_entries = std::fs::read_dir(&backup_config.directory)?;
     let oldest_backup = directory_entries.filter_map(|f| Some(f.ok()?.path())).min();
     if let Some(oldest_backup) = oldest_backup {
         std::fs::remove_file(oldest_backup)?;
@@ -129,6 +129,17 @@ mod tests {
         create_backup_directory(&backup_config).unwrap();
         create_local_backup(&pool, &backup_config).await.unwrap();
         assert!(backup_config.directory.read_dir().unwrap().next().is_some());
+        delete_backup_directory(&backup_config);
+    }
+
+    #[sqlx::test]
+    async fn local_backup_deletion_is_succesfull(pool: SqlitePool) {
+        let _lock = TEST_LOCK.lock().await;
+        let backup_config = setup_backup_config();
+        create_backup_directory(&backup_config).unwrap();
+        create_local_backup(&pool, &backup_config).await.unwrap();
+        remove_oldest_backup(&backup_config).unwrap();
+        assert!(backup_config.directory.read_dir().unwrap().next().is_none());
         delete_backup_directory(&backup_config);
     }
 }
