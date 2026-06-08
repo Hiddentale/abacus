@@ -1,8 +1,10 @@
 use chrono::Local;
 use sqlx::SqlitePool;
 use std::path::{Path, PathBuf};
+use tokio::time::Duration;
 
 const AMOUNT_OF_BACKUP_FILES_ALLOWED: usize = 5;
+const BACKUP_INTERVAL_IN_MINUTES: u64 = 5;
 
 #[derive(Clone)]
 pub struct BackupConfig {
@@ -42,7 +44,17 @@ impl From<sqlx::Error> for BackupError {
     }
 }
 
-pub async fn create_local_backup(
+pub async fn run_backup_scheduler(backup_pool: SqlitePool, backup_config: BackupConfig) {
+    let mut interval = tokio::time::interval(Duration::from_mins(BACKUP_INTERVAL_IN_MINUTES));
+    loop {
+        interval.tick().await;
+        if let Err(e) = create_local_backup(&backup_pool, &backup_config).await {
+            tracing::error!("Backup failed: {e:?}");
+        }
+    }
+}
+
+async fn create_local_backup(
     pool: &SqlitePool,
     backup_config: &BackupConfig,
 ) -> Result<(), BackupError> {
